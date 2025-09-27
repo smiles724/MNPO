@@ -92,7 +92,7 @@ bash run.sh
 
 ## Evaluation
 
-We adopt **EvalScope** for a unified evaluation pipeline to save time and ensure reproducibility.
+We adopt [EvalScope](https://github.com/modelscope/evalscope/tree/main) for a unified evaluation pipeline to save time and ensure reproducibility.
 
 ### Installation
 
