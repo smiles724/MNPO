@@ -89,5 +89,116 @@ Adjust the variables at the top of `run.sh` (base model, dataset name, GPU count
 bash run.sh
 ```
 
+
+## Evaluation
+
+We adopt **EvalScope** for a unified evaluation pipeline to save time and ensure reproducibility.
+
+### Installation
+
+Follow the official GitHub instructions to set up EvalScope:
+
+```bash
+conda create -n evalscope python=3.10
+conda activate evalscope
+git clone https://github.com/modelscope/evalscope.git
+cd evalscope/
+pip install -e .
+```
+
+### Serving the Model with vLLM
+
+Before evaluation, first serve your model via `vllm`:
+
+```bash
+python -m vllm.entrypoints.openai.api_server \
+    --model google/gemma-2-9b-it \
+    --served-model-name google/gemma-2-9b-it \
+    --trust_remote_code \
+    --port 8801 \
+    --tensor-parallel-size 8 # num of gpu
+```
+
+### Evaluating Rule-Based Datasets
+
+EvalScope provides CLI support for multiple datasets at once. For example:
+
+```bash
+evalscope eval \
+    --model gemma-2-9b-it \
+    --api-url http://127.0.0.1:8801/v1 \
+    --api-key EMPTY \
+    --eval-type openai_api \
+    --limit 5 \ 
+    --datasets humaneval arc  # add more datasets here
+```
+
+### Evaluating Datasets with LLM Judges
+
+Some benchmarks require an LLM judge for evaluation. Here is an example script:
+
+```python
+from evalscope import TaskConfig, run_task
+from evalscope.constants import EvalType, JudgeStrategy
+
+task_cfg = TaskConfig(
+    model='gemma-2-9b-it',
+    api_url='http://127.0.0.1:8801/v1',
+    api_key='EMPTY',
+    eval_type=EvalType.SERVICE,
+    datasets=[
+        'alpaca_eval',
+    ],
+    eval_batch_size=12,
+    judge_worker_num=12,
+    limit=5,  # optional for debugging
+    judge_strategy=JudgeStrategy.AUTO,
+    judge_model_args={
+        'model_id': 'gpt-5-mini',
+        'generation_config': {"reasoning_effort": "minimal"},
+        'api_url': 'xx',
+        'api_key': 'xx',
+    },
+)
+
+run_task(task_cfg=task_cfg)
+```
+
+> 📌 **Notes**
+>
+> * The version of EvalScope used in the paper is **1.0.2**.
+> * The LLM judge is `gpt-5-mini` (Aug 7, 2025), with `reasoning_effort="minimal"`.
+> * All other judge parameters follow EvalScope defaults.
+
+You can find the list of datasets supported by EvalScope at [the official documentation](https://evalscope.readthedocs.io/en/latest/get_started/supported_dataset/llm.html).
+
+## MT-Bench Evaluation
+
+For MT-Bench, we follow the [official FastChat repository](https://github.com/lm-sys/FastChat).
+
+**Step 1: Generate model outputs**
+
+```bash
+export OPENAI_BASE_URL="http://127.0.0.1:8801/v1"
+export OPENAI_API_KEY="EMPTY"
+
+python -m fastchat.llm_judge.gen_api_answer \
+    --model gemma-2-9b-it \
+    --bench-name mt_bench \
+    --parallel 12
+```
+
+**Step 2: Judge with an external model**
+
+```bash
+export OPENAI_API_KEY="xx"
+export OPENAI_BASE_URL="xx"
+
+python gen_judgment.py \
+    --model-list gemma-2-9b-it \
+    --parallel 12 \
+    --judge-model gpt-5-mini
+```
+
 ## Support & Citation
 If you build on this codebase in academic work, please cite the MNPO methodology and link back to this repository so others can reproduce your setup.
