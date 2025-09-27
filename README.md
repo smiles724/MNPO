@@ -2,11 +2,15 @@
 
 This repository packages the full iterative **Multiplayer Nash Preference Optimization (MNPO)** workflow that we used to fine-tune instruction-following language models with on-policy preference data. It bundles scripts for dataset preparation, preference data generation, annotation, and multi-GPU MNPO training so you can reproduce or adapt our alignment pipeline end-to-end.
 
-## Key Features
-- **End-to-end alignment loop** – Automates dataset splitting, precomputation, MNPO training, and optional on-policy data refreshes across multiple iterations.
-- **Configurable infrastructure** – Includes ready-to-use Accelerate/DeepSpeed launch configs and per-iteration YAML training recipes targeting Gemma-2 instruction-tuned checkpoints.
-- **On-policy preference generation** – Provides decoding, post-processing, and reward-model scoring utilities for creating MNPO-ready binary preference datasets.
-- **Modular alignment utilities** – Reuses the shared `alignment` package for argument parsing, tokenizer handling, and adapter-aware checkpoint loading.
+[//]: # (## Key Features)
+
+[//]: # (- **End-to-end alignment loop** – Automates dataset splitting, precomputation, MNPO training, and optional on-policy data refreshes across multiple iterations.)
+
+[//]: # (- **Configurable infrastructure** – Includes ready-to-use Accelerate/DeepSpeed launch configs and per-iteration YAML training recipes targeting Gemma-2 instruction-tuned checkpoints.)
+
+[//]: # (- **On-policy preference generation** – Provides decoding, post-processing, and reward-model scoring utilities for creating MNPO-ready binary preference datasets.)
+
+[//]: # (- **Modular alignment utilities** – Reuses the shared `alignment` package for argument parsing, tokenizer handling, and adapter-aware checkpoint loading.)
 
 ## Repository Layout
 
