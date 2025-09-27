@@ -1,9 +1,9 @@
 # Environment
 
-sim
+mnpo_train
 ```shell
-conda create -n sim python=3.10 -y
-conda activate sim
+conda create -n mnpo_train python=3.10 -y
+conda activate mnpo_train
 pip install torch==2.7.0 torchvision==0.22.0 torchaudio==2.7.0 --index-url https://download.pytorch.org/whl/cu128
 pip install \
   https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.0.post2/flash_attn-2.8.0.post2+cu12torch2.7cxx11abiFALSE-cp310-cp310-linux_x86_64.whl  
@@ -19,11 +19,11 @@ pip install \
 
 
 ```
-mnpo
+mnpo_infer
 
 ```shell
-conda create -n mnpo python=3.10 -y
-conda activate mnpo
+conda create -n mnpo_infer python=3.10 -y
+conda activate mnpo_infer
 pip install \
 pip install torch==2.7.0 torchvision==0.22.0 torchaudio==2.7.0 --index-url https://download.pytorch.org/whl/cu128
   vllm==0.9.0 \

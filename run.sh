@@ -22,7 +22,7 @@ generate_on_policy_data() {
     echo "    Iteration ${iter}: Starting On-Policy Data Generation"
     echo "----------------------------------------------------"
 
-    conda activate mnpo
+    conda activate mnpo_infer
 
     for SEED in 13 21 42 79 100; do
         echo "Running decode with seed $SEED..."
@@ -39,7 +39,7 @@ generate_on_policy_data() {
     python -m on_policy_data_gen.post_process \
         --generation_file_dir "$output_dir"
 
-    conda activate sim
+    conda activate mnpo_train
 
     python -m on_policy_data_gen.reward_model_annotate \
         --generation_file "${output_dir}/all_outputs.json" \
