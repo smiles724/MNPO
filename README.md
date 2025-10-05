@@ -83,8 +83,7 @@ The `run.sh` script demonstrates a three-iteration MNPO curriculum and can be ad
 3. **Precomputation** – `mnpo_scripts.precompute` computes log-probabilities, normalizers, and history buffers used by MNPO training. Previous stage checkpoints can be chained via the `--history_paths` argument.
 4. **Training** – `mnpo_scripts.run_mnpo` launches the actual MNPO updates using Accelerate/DeepSpeed and the YAML config for the current iteration. Outputs are written under `outputs/` and fed into the next iteration.
 
-Adjust the variables at the top of `run.sh` (base model, dataset name, GPU count, cache directories) to reflect your setup, then execute:
-
+Adjust the variables at the top of run.sh, customize the training and accelerate configurations to match your setup, then execute:
 ```bash
 bash run.sh
 ```
