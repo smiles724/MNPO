@@ -79,7 +79,7 @@ export PYTHONPATH=$(pwd)
 The `run.sh` script demonstrates a three-iteration MNPO curriculum and can be adapted to your infrastructure.
 
 1. **Initial dataset split** – `mnpo_scripts.split_dataset` shards the base preference dataset into per-iteration train/test JSONL files to avoid leakage between stages.
-2. **On-policy generation (for iteration &gt; 1)** – `on_policy_data_gen.decode` samples multiple responses per prompt, `post_process` filters identical answers, and `reward_model_annotate` scores them with a reward model to produce MNPO-ready pairs. reward_model_annotate scores them with a reward model to produce MNPO-ready pairs. For reproduction and experiments, we included both reward model and preference model annotation.
+2. **On-policy generation (for iteration &gt; 1)** – `on_policy_data_gen.decode` samples multiple responses per prompt, `post_process` filters identical answers, and `reward_model_annotate` scores them with a reward model to produce MNPO-ready pairs. For reproduction and experiments, we included both reward model and preference model annotation.
 3. **Precomputation** – `mnpo_scripts.precompute` computes log-probabilities, normalizers, and history buffers used by MNPO training. Previous stage checkpoints can be chained via the `--history_paths` argument.
 4. **Training** – `mnpo_scripts.run_mnpo` launches the actual MNPO updates using Accelerate/DeepSpeed and the YAML config for the current iteration. Outputs are written under `outputs/` and fed into the next iteration.
 
