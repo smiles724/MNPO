@@ -14,13 +14,12 @@ import torch.nn.functional as F
 from accelerate import PartialState
 from datasets import Dataset
 from torch.utils.data import DataLoader
-from transformers import AutoModelForCausalLM, DataCollator, PreTrainedModel, PreTrainedTokenizerBase, Trainer
+from transformers import AutoModelForCausalLM, DataCollator, PreTrainedModel, PreTrainedTokenizerBase, Trainer, is_wandb_available
 from trl.trainer import CPOTrainer
 from transformers.trainer_callback import TrainerCallback
 from transformers.trainer_utils import EvalLoopOutput
-from transformers.utils import is_torch_fx_proxy
+from transformers.utils import is_torch_fx_proxy, is_peft_available
 
-from trl.import_utils import is_peft_available, is_wandb_available
 from scripts.simpo_config import SimPOConfig
 
 from dataclasses import dataclass
@@ -33,7 +32,6 @@ from trl.trainer.utils import (
     disable_dropout_in_model,
     pad_to_length,
     peft_module_casting_to_bf16,
-    trl_sanitze_kwargs_for_tagging,
 )
 
 if is_peft_available():
@@ -734,6 +732,7 @@ class SimPOTrainer(Trainer):
         model: Union[PreTrainedModel, nn.Module],
         inputs: Dict[str, Union[torch.Tensor, Any]],
         return_outputs=False,
+        num_items_in_batch: Optional[int] = None,  # add this to adapt to transformers update
     ) -> Union[torch.Tensor, Tuple[torch.Tensor, Dict[str, torch.Tensor]]]:
         if not self.use_dpo_data_collator:
             warnings.warn(
@@ -753,7 +752,7 @@ class SimPOTrainer(Trainer):
             return (loss, metrics)
         return loss
 
-    def get_batch_samples(self, model, batch: Dict[str, torch.LongTensor]) -> Tuple[str, str]:
+    def generate_samples_for_eval(self, model, batch: Dict[str, torch.LongTensor]) -> Tuple[str, str]:
         """Generate samples from the model and reference model for the given batch of inputs."""
 
         # If one uses `generate_during_eval` with peft + bf16, we need to explicitly call generate with
@@ -773,6 +772,15 @@ class SimPOTrainer(Trainer):
         policy_output_decoded = self.tokenizer.batch_decode(policy_output, skip_special_tokens=True)
 
         return policy_output_decoded
+
+    def get_batch_samples(self, epoch_iterator, num_batches, device):
+        """
+        Adapter for HF Trainer's internal API.
+
+        This is used by `Trainer._inner_training_loop`, we don't want to change
+        its behavior, so we just defer to the parent implementation.
+        """
+        return super().get_batch_samples(epoch_iterator, num_batches, device)
 
     def prediction_step(
         self,
@@ -844,7 +852,7 @@ class SimPOTrainer(Trainer):
             random_batch = self.data_collator(random_batch_dataset)
             random_batch = self._prepare_inputs(random_batch)
 
-            policy_output_decoded = self.get_batch_samples(self.model, random_batch)
+            policy_output_decoded = self.generate_samples_for_eval(self.model, random_batch)
 
             self.log(
                 {
@@ -866,21 +874,18 @@ class SimPOTrainer(Trainer):
 
         return initial_output
 
-    def log(self, logs: Dict[str, float]) -> None:
+    def log(self, logs: Dict[str, float], *args, **kwargs) -> None:
         """
         Log `logs` on the various objects watching training, including stored metrics.
 
-        Args:
-            logs (`Dict[str, float]`):
-                The values to log.
         """
-        # logs either has 'loss' or 'eval_loss'
         train_eval = "train" if "loss" in logs else "eval"
-        # Add averaged stored metrics to logs
+
         for key, metrics in self._stored_metrics[train_eval].items():
             logs[key] = torch.tensor(metrics).mean().item()
         del self._stored_metrics[train_eval]
-        return super().log(logs)
+
+        return super().log(logs, *args, **kwargs)
 
     @wraps(Trainer.push_to_hub)
     def push_to_hub(self, commit_message: Optional[str] = "End of training", blocking: bool = True, **kwargs) -> str:
@@ -888,6 +893,5 @@ class SimPOTrainer(Trainer):
         Overwrite the `push_to_hub` method in order to force-add the tag "simpo" when pushing the
         model on the Hub. Please refer to `~transformers.Trainer.push_to_hub` for more details.
         """
-        kwargs = trl_sanitze_kwargs_for_tagging(model=self.model, tag_names=self._tag_names, kwargs=kwargs)
 
         return super().push_to_hub(commit_message=commit_message, blocking=blocking, **kwargs)
