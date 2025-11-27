@@ -5,7 +5,6 @@ os.environ["VLLM_ATTENTION_BACKEND"] = "FLASHINFER" # this is recommended for ge
 import argparse
 import json
 from tqdm import tqdm
-from more_itertools import chunked
 
 parser = argparse.ArgumentParser(description='Decode with vllm')
 parser.add_argument('--data_dir', type=str, default="HuggingFaceH4/ultrafeedback_binarized",
@@ -18,8 +17,6 @@ parser.add_argument('--top_p', type=float, default=0.95,
                     help='Top-p probability for sampling')
 parser.add_argument('--max_tokens', type=int, default=4096,
                     help='Maximum number of tokens to generate')
-parser.add_argument('--seed', type=int, default=42,
-                    help='Random seed')
 parser.add_argument('--output_dir', type=str, default="datasets/gemma2_ultrafeedback",
                     help='Output directory')
 parser.add_argument('--num_gpu', type=int, default=4)
@@ -27,6 +24,8 @@ parser.add_argument('--sanity_check', action='store_true', help="Enable sanity c
 parser.add_argument('--batch_size', type=int, default=8)
 parser.add_argument('--cache_dir', type=str, default=None,
                     help='Cache directory for model and dataset')
+parser.add_argument('--seeds', type=int, nargs='+', default=[42],
+                    help='A list of random seeds to run')
 args = parser.parse_args()
 
 print(args)
@@ -59,30 +58,40 @@ prompts = sorted(list(set(train_dataset['prompt'])))
 
 conversations = [tokenizer.apply_chat_template([{'role': 'user', 'content': prompt}], tokenize=False, add_generation_prompt=True) for prompt in prompts]
 
-sampling_params = SamplingParams(temperature=args.temperature, 
-                                 top_p=args.top_p, 
-                                 max_tokens=args.max_tokens, 
-                                 seed=args.seed,)
-batched_prompts = list(chunked(conversations, args.batch_size))
-output_data = []
+for seed in args.seeds:
+    print(f"\n--- Processing for seed {seed} ---")
 
-for batch_prompts in tqdm(batched_prompts):
+    sampling_params = SamplingParams(temperature=args.temperature,
+                                     top_p=args.top_p,
+                                     max_tokens=args.max_tokens,
+                                     seed=seed,)
+    output_data = []
+
+    print(f"Submitting {len(conversations)} prompts to vLLM in a single batch...")
+
     try:
-        outputs = llm.generate(batch_prompts, sampling_params)
-        for i, output in enumerate(outputs):
+
+        all_outputs = llm.generate(conversations, sampling_params)
+
+        print("Generation complete. Processing outputs...")
+
+        for i, output in enumerate(tqdm(all_outputs)):
             output_data.append({
-                'prompt': batch_prompts[i],
+                'prompt': prompts[i],
                 "format_prompt": output.prompt,
                 'generated_text': output.outputs[0].text,
             })
+
     except Exception as e:
-        print(f"Batch failed with error: {e}")
+        print(f"Generation failed with error: {e}")
 
-output_file = f'output_{args.seed}.json'
-if not os.path.exists(args.output_dir):
-    os.makedirs(args.output_dir)
+    output_file = f'output_{seed}.json'
+    if not os.path.exists(args.output_dir):
+        os.makedirs(args.output_dir)
 
-with open(os.path.join(args.output_dir, output_file), 'w') as f:
-    json.dump(output_data, f, indent=4)
+    with open(os.path.join(args.output_dir, output_file), 'w') as f:
+        json.dump(output_data, f, indent=4)
 
-print(f"Outputs saved to {os.path.join(args.output_dir, output_file)}")
+    print(f"Outputs saved to {os.path.join(args.output_dir, output_file)}")
+
+print("\nAll seeds processed.")
