@@ -18,6 +18,7 @@ from transformers import (
 from trl.trainer.utils import DPODataCollatorWithPadding, pad_to_length
 import torch.nn as nn
 import os
+from mnpo_scripts.precompute_trainer import PreferenceDataCollatorWithPadding
 
 logger = logging.getLogger(__name__)
 
@@ -235,35 +236,6 @@ def transform_chat_to_str(example: Dict[str, Any]) -> Dict[str, Any]:
     return example
 
 
-def tokenize_row(
-    feature: Dict[str, Any],
-    tokenizer: PreTrainedTokenizerBase,
-    max_length: int,
-    max_prompt_length: int,
-) -> Dict[str, Any]:
-    prompt = feature["prompt"]
-    chosen_response = feature["chosen"]
-    rejected_response = feature["rejected"]
-
-    prompt_tokens = tokenizer(prompt, max_length=max_prompt_length, truncation=True)
-    chosen_tokens = tokenizer(prompt + chosen_response, max_length=max_length, truncation=True)
-    rejected_tokens = tokenizer(prompt + rejected_response, max_length=max_length, truncation=True)
-
-    chosen_labels = chosen_tokens["input_ids"][:]
-    chosen_labels[: len(prompt_tokens["input_ids"])] = [-100] * len(prompt_tokens["input_ids"])
-    rejected_labels = rejected_tokens["input_ids"][:]
-    rejected_labels[: len(prompt_tokens["input_ids"])] = [-100] * len(prompt_tokens["input_ids"])
-
-    return {
-        "prompt": prompt,  # keep original prompt text as well
-        "chosen_input_ids": chosen_tokens["input_ids"],
-        "chosen_attention_mask": chosen_tokens["attention_mask"],
-        "chosen_labels": chosen_labels,
-        "rejected_input_ids": rejected_tokens["input_ids"],
-        "rejected_attention_mask": rejected_tokens["attention_mask"],
-        "rejected_labels": rejected_labels,
-    }
-
 
 def compute_and_add_logps(
     dataset: DatasetDict,
@@ -283,11 +255,16 @@ def compute_and_add_logps(
     ).eval()
     model = accelerator.prepare_model(model)
 
-    # Use DPODataCollatorWithPadding
-    data_collator = DPODataCollatorWithPadding(
-        pad_token_id=tokenizer.pad_token_id,
+    data_collator = PreferenceDataCollatorWithPadding(
+        tokenizer=tokenizer,
+        max_length=args.max_length,
+        max_prompt_length=args.max_prompt_length,
         label_pad_token_id=-100,
+        padding_value=0,
+        truncation_mode="keep_end",
         is_encoder_decoder=False,
+        max_target_length=None,
+        mask_prompt=args.mask_prompt,
     )
 
     for split in dataset.keys():
@@ -309,13 +286,13 @@ def compute_and_add_logps(
             all_chosen_logps.append(chosen_logps.cpu())
             all_rejected_logps.append(rejected_logps.cpu())
 
-        # Add new columns back to the (tokenized) split dataset
-        dataset[split] = split_dataset.add_column(
-            f"{column_prefix}_chosen_logps", torch.cat(all_chosen_logps).float().numpy()
-        )
-        dataset[split] = dataset[split].add_column(
-            f"{column_prefix}_rejected_logps", torch.cat(all_rejected_logps).float().numpy()
-        )
+        chosen_arr = torch.cat(all_chosen_logps).float().numpy()
+        rejected_arr = torch.cat(all_rejected_logps).float().numpy()
+
+        assert len(split_dataset) == len(chosen_arr), "number of logps should be the same as number of samples"
+
+        dataset[split] = split_dataset.add_column(f"{column_prefix}_chosen_logps", chosen_arr)
+        dataset[split] = dataset[split].add_column(f"{column_prefix}_rejected_logps", rejected_arr)
 
     del model
     accelerator.free_memory()
@@ -418,21 +395,8 @@ def main():
         if "test" in raw_dataset:
             raw_dataset["test"] = raw_dataset["test"].select(range(min(100, len(raw_dataset["test"]))))
 
-    # ----- Tokenize (SimPO-style) -----
-    logger.info("Tokenizing dataset in SimPO-style...")
-    tokenized_dataset = raw_dataset.map(
-        tokenize_row,
-        fn_kwargs={
-            "tokenizer": tokenizer,
-            "max_length": script_args.max_length,
-            "max_prompt_length": script_args.max_prompt_length,
-        },
-        num_proc=12,
-    )
-    logger.info("Tokenization complete.")
-
     # We'll compute logps on the tokenized dataset and store columns on it.
-    dataset_with_logps = tokenized_dataset
+    dataset_with_logps = raw_dataset
 
     # Reference model logps
     if not script_args.ref_model:

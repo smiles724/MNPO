@@ -112,13 +112,13 @@ def main():
     # =====================================================================================
     parser = H4ArgumentParser((ModelArguments, DataArguments, MNPOConfig))
     parsed = parser.parse()
+
     if isinstance(parsed, tuple):
         model_args, data_args, training_args = parsed
     else:
         raise RuntimeError("Expected 3 arguments (Model, Data, Training), got 1.")
 
     # =====================================================================================
-
     #######
     # Setup
     #######

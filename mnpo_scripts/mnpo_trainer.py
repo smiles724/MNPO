@@ -17,11 +17,14 @@ class MNPOTrainer(SimPOTrainer):
         super().__init__(model=model, args=args, **kwargs)
 
         # MNPO parameters
-        self.ratio = args.ratio
-        self.eta = args.eta
-        self.max_history_t = args.max_history_t
-        self.beta = args.beta
-        self.weights = args.weights
+        self.ratio = float(args.ratio)
+        self.eta = float(args.eta)
+        self.beta = float(args.beta)
+        self.max_history_t = int(args.max_history_t)
+        if getattr(args, "history_weights", None):
+            self.weights = list(args.history_weights)
+        else:
+            self.weights = [1.0 for _ in range(self.max_history_t)]
 
     def mnpo_loss(
             self,
@@ -31,34 +34,55 @@ class MNPOTrainer(SimPOTrainer):
             reference_rejected_logps: torch.FloatTensor,
             history_logps_list: List[Tuple[torch.FloatTensor, torch.FloatTensor]],
     ) -> Tuple[torch.FloatTensor, torch.FloatTensor, torch.FloatTensor]:
-        """
-        Computes the MNPO loss.
-        This is a direct adaptation of your provided loss function.
-        """
-        pi_logratios = policy_chosen_logps - policy_rejected_logps
-        ref_logratios = reference_chosen_logps - reference_rejected_logps
+
+        device = self.accelerator.device
+
+        policy_chosen_logps = policy_chosen_logps.to(device=device, dtype=torch.float32)
+        policy_rejected_logps = policy_rejected_logps.to(device=device, dtype=torch.float32)
+        reference_chosen_logps = reference_chosen_logps.to(device=device, dtype=torch.float32)
+        reference_rejected_logps = reference_rejected_logps.to(device=device, dtype=torch.float32)
+
+        pi_logratios = policy_chosen_logps - policy_rejected_logps  # (B,)
+        ref_logratios = reference_chosen_logps - reference_rejected_logps  # (B,)
 
         t = self.max_history_t
-        weighted_logratios = 0.0
-        #  weighting strategy, can be made more flexible if needed
 
-        weights = self.weights
+        weighted_logratios = torch.zeros_like(pi_logratios, device=device)
+
+        weights = [float(w) for w in self.weights] if hasattr(self, "weights") else []
 
         if history_logps_list and t > 0:
-            effective_t = len(history_logps_list)
+            effective_t = min(len(history_logps_list), t)
+
             if effective_t > 0:
-                total_weight = sum(weights[:effective_t])
-                for j, (chosen_j, rejected_j) in enumerate(history_logps_list):
-                    if j < len(weights):
-                        lambda_j = weights[j] / total_weight if total_weight > 0 else 1 / effective_t
-                        weighted_logratios += lambda_j * (chosen_j - rejected_j)
+                if not weights:
+                    weights = [1.0] * effective_t
 
-        logits = pi_logratios - self.ratio * ref_logratios - (1 - self.ratio) * weighted_logratios
+                weights = weights[:effective_t]
+                total_weight = float(sum(weights)) if sum(weights) != 0 else 0.0
 
-        losses = (logits - 1 / (2 * self.eta)) ** 2
+                for j, (chosen_j, rejected_j) in enumerate(history_logps_list[:effective_t]):
+                    chosen_j = torch.as_tensor(chosen_j, device=device, dtype=torch.float32)
+                    rejected_j = torch.as_tensor(rejected_j, device=device, dtype=torch.float32)
 
-        chosen_rewards = self.beta * (policy_chosen_logps - reference_chosen_logps).detach()
-        rejected_rewards = self.beta * (policy_rejected_logps - reference_rejected_logps).detach()
+                    if total_weight > 0:
+                        lambda_j = weights[j] / total_weight
+                    else:
+                        lambda_j = 1.0 / float(effective_t)
+
+                    weighted_logratios = weighted_logratios + lambda_j * (chosen_j - rejected_j)
+
+        ratio = float(self.ratio)
+        eta = float(self.eta)
+        beta = float(self.beta)
+
+        logits = pi_logratios - ratio * ref_logratios - (1.0 - ratio) * weighted_logratios
+
+        logits_shift = 1.0 / (2.0 * eta)
+        losses = (logits - logits_shift) ** 2
+
+        chosen_rewards = beta * (policy_chosen_logps - reference_chosen_logps).detach()
+        rejected_rewards = beta * (policy_rejected_logps - reference_rejected_logps).detach()
 
         return losses, chosen_rewards, rejected_rewards
 
