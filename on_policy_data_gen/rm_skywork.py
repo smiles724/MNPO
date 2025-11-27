@@ -3,15 +3,43 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 import json
 import os
 from tqdm import tqdm
+import argparse
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Score responses with Skywork Reward Model")
 
-MODEL_NAME = "Skywork/Skywork-Reward-V2-Llama-3.1-8B"
-CACHE_DIR = "/hai/scratch/fangwu97/xu/cache"
-INPUT_FILE = "/hai/scratch/fangwu97/xu/SimPO_slurm/datasets/gemma2_ultrafeedback/mnpo_iter3_skywork/all_outputs.json"
-OUTPUT_FILE = "/hai/scratch/fangwu97/xu/SimPO_slurm/datasets/gemma2_ultrafeedback/mnpo_iter3_skywork_scored.jsonl"
+    parser.add_argument(
+        "--model_name",
+        type=str,
+        default="Skywork/Skywork-Reward-V2-Llama-3.1-8B",
+        help="HuggingFace model name or local path"
+    )
+    parser.add_argument(
+        "--cache_dir",
+        type=str,
+        default="/cache",
+        help="Cache directory for HF models"
+    )
+    parser.add_argument(
+        "--input_file",
+        type=str,
+        required=True,
+        help="Path to input .json or .jsonl file (all_outputs.json)"
+    )
+    parser.add_argument(
+        "--output_file",
+        type=str,
+        required=True,
+        help="Path to output .jsonl file (scored outputs)"
+    )
+    parser.add_argument(
+        "--max_seq_length",
+        type=int,
+        default=4096,
+        help="Maximum sequence length for the tokenizer"
+    )
 
-MAX_SEQ_LENGTH = 4096
-
+    return parser.parse_args()
 
 def load_data(file_path):
     suffix = os.path.splitext(file_path)[1].lower()
@@ -44,7 +72,13 @@ def load_data(file_path):
 
 
 
-def main():
+def main(args):
+    MODEL_NAME = args.model_name
+    CACHE_DIR = args.cache_dir
+    INPUT_FILE = args.input_file
+    OUTPUT_FILE = args.output_file
+    MAX_SEQ_LENGTH = args.max_seq_length
+
     print(f"Step 1: loading {MODEL_NAME}...")
     print(f"         - Cache Dir: {CACHE_DIR}")
 
@@ -157,4 +191,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(args)
