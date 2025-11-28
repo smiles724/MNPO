@@ -24,6 +24,9 @@ preprocessing_num_workers: 12
 bf16: true
 eta: 0.005
 ratio: 0.85
+weights:
+  - 0.25
+  - 0.75
 max_history_t: 2
 beta: 10
 learning_rate: 5.0e-7
