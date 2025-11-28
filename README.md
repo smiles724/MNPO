@@ -24,7 +24,7 @@ This repository packages the full iterative **Multiplayer Nash Preference Optimi
 We separate environments for model training and large-scale decoding. Both assume **Python 3.10** and CUDA 12.8 builds of PyTorch/FlashAttention.
 
 <details>
-<summary><code>mnpo_train</code> (training & reward model inference)</summary>
+<summary><code>mnpo_train</code> </summary>
 
 ```bash
 conda create -n mnpo_train python=3.10 -y
@@ -46,7 +46,7 @@ pip install \
 </details>
 
 <details>
-<summary><code>mnpo_infer</code> (on-policy decoding)</summary>
+<summary><code>mnpo_infer</code> </summary>
 
 ```bash
 conda create -n mnpo_infer python=3.10 -y
