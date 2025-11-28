@@ -85,7 +85,7 @@ The `run.sh` script demonstrates a three-iteration MNPO curriculum and can be ad
 
 Adjust the variables at the top of run.sh, customize the training and accelerate configurations to match your setup, then execute:
 ```bash
-bash run.sh
+bash run_iter2.sh
 ```
 
 
