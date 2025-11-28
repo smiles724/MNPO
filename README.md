@@ -10,15 +10,16 @@ This repository packages the full iterative **Multiplayer Nash Preference Optimi
 
 ## Repository Layout
 
-| Path | Description |
-| --- | --- |
-| `mnpo_scripts/` | MNPO orchestration code: configuration dataclasses, precomputation loop, MNPO trainer, and CLI entrypoints such as `run_mnpo.py` and `split_dataset.py`. |
-| `on_policy_data_gen/` | Tools for generating and annotating on-policy preference pairs (decoding, post-processing, reward model annotation). |
-| `alignment/` | Shared alignment helpers for data loading, model utilities, and release tooling. |
-| `training_configs/` | MNPO hyperparameter YAMLs for each training stage (e.g., `gemma-2-9b-it-mnpo-iter*.yaml`). |
-| `accelerate_configs/` | Launch configurations for Accelerate, DeepSpeed ZeRO, and FSDP setups. |
-| `scripts/` | Auxiliary utilities and launch helpers. |
-| `run.sh` | Example shell pipeline that ties together dataset splitting, on-policy data refresh, precomputation, and training loops. |
+| Path                  | Description                                                                                                                                             |
+|-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `mnpo_scripts/`       | MNPO orchestration code: configuration dataclasses, precomputation loop, MNPO trainer, and CLI entrypoints such as `run_mnpo.py` and `split_dataset.py`. |
+| `on_policy_data_gen/` | Tools for generating and annotating on-policy preference pairs (decoding, post-processing, reward model annotation).                                    |
+| `alignment/`          | Shared alignment helpers for data loading, model utilities, and release tooling.                                                                        |
+| `training_configs/`   | MNPO hyperparameter YAMLs for each training stage (e.g., `gemma-2-9b-it-mnpo-iter*.yaml`).                                                              |
+| `accelerate_configs/` | Launch configurations for Accelerate, DeepSpeed ZeRO, and FSDP setups.                                                                                  |
+| `scripts/`            | Auxiliary utilities and launch helpers.                                                                                                                 |
+| `run.sh`              | Example shell pipeline that ties together dataset splitting, on-policy data refresh, precomputation, and training loops.                                |
+| `evalscope/`          | Example code for evaluation.                                                                                                                            |
 
 ## Environment Setup
 We separate environments for model training and large-scale decoding. Both assume **Python 3.10** and CUDA 12.8 builds of PyTorch/FlashAttention.
@@ -91,6 +92,14 @@ bash run_iter1/2/3.sh
 
 We adopt [EvalScope](https://github.com/modelscope/evalscope/tree/main) for a unified evaluation pipeline to save time and ensure reproducibility.
 
+Under the evalscope directory, we provide three example setups that cover most common evaluation scenarios. You can use them as-is or adapt them to your needs:
+
+1. evaluating online APIs; 
+2. evaluating LLM-as-a-judge tasks;
+3. evaluating rule-based tasks.
+
+
+
 ### Installation
 
 Follow the official GitHub instructions to set up EvalScope:
@@ -118,16 +127,16 @@ python -m vllm.entrypoints.openai.api_server \
 
 ### Evaluating Rule-Based Datasets
 
-EvalScope provides CLI support for multiple datasets at once. For example:
-
-```bash
-evalscope eval \
-    --model gemma-2-9b-it \
-    --api-url http://127.0.0.1:8801/v1 \
-    --api-key EMPTY \
-    --eval-type openai_api \
-    --limit 5 \ 
-    --datasets humaneval arc  # add more datasets here
+Both rule-based tasks and LLM-as-judge tasks can be implemented using the task_cfg. For example: 
+```python
+task_cfg = TaskConfig(
+    model='gemma-2-9b-it',
+    api_url="http://127.0.0.1:8801/v1",
+    api_key="EMPTY",
+    eval_type=EvalType.SERVICE,
+    datasets=['ifeval'], # add more datasets here
+    eval_batch_size=20,
+)
 ```
 
 ### Evaluating Datasets with LLM Judges
@@ -165,37 +174,9 @@ run_task(task_cfg=task_cfg)
 >
 > * The version of EvalScope used in the paper is **1.0.2**.
 > * The LLM judge is `gpt-5-mini` (Aug 7, 2025), with `reasoning_effort="minimal"`.
-> * All other judge parameters follow EvalScope defaults.
+> * Please configure the appropriate model and related parameters according to the specific task type to ensure the evaluation runs correctly.
 
 You can find the list of datasets supported by EvalScope at [the official documentation](https://evalscope.readthedocs.io/en/latest/get_started/supported_dataset/llm.html).
-
-## MT-Bench Evaluation
-
-For MT-Bench, we follow the [official FastChat repository](https://github.com/lm-sys/FastChat).
-
-**Step 1: Generate model outputs**
-
-```bash
-export OPENAI_BASE_URL="http://127.0.0.1:8801/v1"
-export OPENAI_API_KEY="EMPTY"
-
-python -m fastchat.llm_judge.gen_api_answer \
-    --model gemma-2-9b-it \
-    --bench-name mt_bench \
-    --parallel 12
-```
-
-**Step 2: Judge with an external model**
-
-```bash
-export OPENAI_API_KEY="xx"
-export OPENAI_BASE_URL="xx"
-
-python gen_judgment.py \
-    --model-list gemma-2-9b-it \
-    --parallel 12 \
-    --judge-model gpt-5-mini
-```
 
 ## Support & Citation
 If you build on this codebase in academic work, please cite the MNPO methodology and link back to this repository so others can reproduce your setup.
