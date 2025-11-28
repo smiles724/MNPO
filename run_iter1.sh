@@ -43,29 +43,13 @@ SCORED_FILE=${GEN_DIR}_scored.jsonl
 # Output directory for precompute (HF dataset format)
 PREF_DIR=$PROJECT_ROOT/data/mnpo_iter1_armo/pref
 
-###########################################
-# 1. Decode (using policy models)
-###########################################
-stdbuf -oL -eL $PYTHON_INFER -u -m on_policy_data_gen.decode \
-    --data_dir "$DATA_SPLIT" \
-    --model "$POLICY_MODEL" \
-    --seeds 13 21 42 79 100 \
-    --output_dir "$GEN_DIR" \
-    --cache_dir "$CACHE_DIR" \
-    --num_gpu 2
 
 ###########################################
-# 2. Post-process decoded outputs
-###########################################
-$PYTHON_INFER -m on_policy_data_gen.post_process \
-    --generation_file_dir "$GEN_DIR"
-
-###########################################
-# 3. Reward model scoring
+# 3. Reward model scoring (skip for Armo, as scores are included in the dataset)
 ###########################################
 $PYTHON_TRAIN -u -m on_policy_data_gen.rm_armo_new \
     --cache_dir "$CACHE_DIR" \
-    --input_file "$GEN_DIR/all_outputs.json" \
+    --input_file "$DATA_SPLIT" \
     --output_file "$SCORED_FILE"
 
 ###########################################
