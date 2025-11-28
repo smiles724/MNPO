@@ -92,7 +92,7 @@ bash run_iter1/2/3.sh
 
 We adopt [EvalScope](https://github.com/modelscope/evalscope/tree/main) for a unified evaluation pipeline to save time and ensure reproducibility.
 
-Under the evalscope directory, we provide three example setups that cover most common evaluation scenarios. You can use them as-is or adapt them to your needs:
+Under the evalscope directory, we provide three example setups that cover most common evaluation scenarios. You can adapt them to your needs:
 
 1. evaluating online APIs; 
 2. evaluating LLM-as-a-judge tasks;
