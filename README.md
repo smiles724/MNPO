@@ -4,6 +4,8 @@
 
 - (2025-11) The codebase has been updated to include full support for HT-MNPO 
 
+---
+
 This repository packages the full iterative **Multiplayer Nash Preference Optimization (MNPO)** workflow that we used to fine-tune instruction-following language models with on-policy preference data. It bundles scripts for dataset preparation, preference data generation, annotation, and multi-GPU MNPO training so you can reproduce or adapt our alignment pipeline end-to-end.
 
 ## Repository Layout
