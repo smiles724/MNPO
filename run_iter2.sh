@@ -33,7 +33,7 @@ POLICY_MODEL_T_2=$PROJECT_ROOT/outputs/gemma-2-9b-it_mnpo_stage_1_armo
 REF_MODEL=$CACHE_DIR/gemma-2-9b-it       # Reference model path
 
 # Dataset split for decoding
-DATA_SPLIT=$PROJECT_ROOT/data/gemma2_ufb_part1_20k/gemma2_ufb_part1_split2.jsonl
+DATA_SPLIT=$PROJECT_ROOT/data/gemma2_ufb_part2_train.jsonl
 
 # Output directory for decode + post_process
 GEN_DIR=$PROJECT_ROOT/datasets/gemma2_ultrafeedback/mnpo_iter2_armo

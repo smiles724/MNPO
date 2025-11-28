@@ -1,16 +1,10 @@
 # MNPO Training Pipeline
 
+🔔 News
+
+- (2025-11) The codebase has been updated to include full support for HT-MNPO 
+
 This repository packages the full iterative **Multiplayer Nash Preference Optimization (MNPO)** workflow that we used to fine-tune instruction-following language models with on-policy preference data. It bundles scripts for dataset preparation, preference data generation, annotation, and multi-GPU MNPO training so you can reproduce or adapt our alignment pipeline end-to-end.
-
-[//]: # (## Key Features)
-
-[//]: # (- **End-to-end alignment loop** – Automates dataset splitting, precomputation, MNPO training, and optional on-policy data refreshes across multiple iterations.)
-
-[//]: # (- **Configurable infrastructure** – Includes ready-to-use Accelerate/DeepSpeed launch configs and per-iteration YAML training recipes targeting Gemma-2 instruction-tuned checkpoints.)
-
-[//]: # (- **On-policy preference generation** – Provides decoding, post-processing, and reward-model scoring utilities for creating MNPO-ready binary preference datasets.)
-
-[//]: # (- **Modular alignment utilities** – Reuses the shared `alignment` package for argument parsing, tokenizer handling, and adapter-aware checkpoint loading.)
 
 ## Repository Layout
 
@@ -85,8 +79,10 @@ The `run.sh` script demonstrates a three-iteration MNPO curriculum and can be ad
 
 Adjust the variables at the top of run.sh, customize the training and accelerate configurations to match your setup, then execute:
 ```bash
-bash run_iter2.sh
+bash run_iter1/2/3.sh
 ```
+
+`run_iter1/2/3.sh` demonstrates a pipeline using a single reward model. Other reward models can be substituted by modifying the corresponding reward-model-annotation section.
 
 
 ## Evaluation

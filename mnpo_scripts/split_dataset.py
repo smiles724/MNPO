@@ -97,17 +97,17 @@ def main():
         # 2a) Save JSONL for each split
         for sn in available_splits:
             json_path = os.path.join(
-                args.json_save_path, f"{args.dataset_name.replace('/', '_')}_part{part_num}_{sn}.jsonl"
+                args.json_save_path, f"gemma2_ufb_part{part_num}_{sn}.jsonl"
             )
             final_part[sn].to_json(json_path)
             print(f"Saved JSONL for split '{sn}' to: {json_path}")
 
         # 2b) Save HF dataset to disk
-        disk_dir = os.path.join(
-            args.base_save_path, f"{args.dataset_name.replace('/', '_')}_part{part_num}"
-        )
-        final_part.save_to_disk(disk_dir)
-        print(f"Saved dataset part {part_num} to disk at: {disk_dir}")
+        # disk_dir = os.path.join(
+        #     args.base_save_path, f"{args.dataset_name.replace('/', '_')}_part{part_num}"
+        # )
+        # final_part.save_to_disk(disk_dir)
+        # print(f"Saved dataset part {part_num} to disk at: {disk_dir}")
 
     print("\nAll parts processed and saved successfully!")
 
